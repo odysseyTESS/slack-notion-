@@ -56,19 +56,15 @@ def handle_message_events(body, logger, client):
         return
 
     try:
-        # Slackから投稿者のユーザー情報を取得
-        user_info = client.users_info(user=user_id)
-        user_name = user_info["user"].get("real_name") or user_info["user"].get("name")
+        # 投稿者情報の取得処理は不要になったため削除しました
         
         # タイムスタンプを Notion で解釈可能な ISO 8601 形式に変換
         post_datetime = datetime.fromtimestamp(float(ts)).isoformat()
 
         # 3. Notion API を使用してデータベースに保存する
-        # Titleとして、「メッセージ内容 (by ユーザー名)」 という形式にするか、本文そのものを入れます。
-        # ここではメッセージ本文を Title に入れ、わかりやすさを優先します
-        # 注: Notion側のプロパティ名が "Title" と "Date" であることを前提としています
+        # Titleとして、メッセージ本文そのものを入れます
         
-        title_content = f"{text}\n\n-- 投稿者: {user_name}"
+        title_content = text
         
         notion.pages.create(
             parent={"database_id": NOTION_DATABASE_ID},
