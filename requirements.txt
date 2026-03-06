@@ -1,0 +1,5 @@
+slack_bolt==1.19.1
+notion-client==2.2.1
+python-dotenv==1.0.1
+Flask==3.0.3
+gunicorn==22.0.0
