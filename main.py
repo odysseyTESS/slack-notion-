@@ -90,6 +90,9 @@ def handle_message_events(body, logger, client):
     except Exception as e:
         logger.error(f"エラーが発生しました: {e}")
 
+# ==========================================
+# 4. Render用 Webサーバー 兼 SocketMode起動部
+# ==========================================
 # ダミーのWebサーバー（Renderのポートバインディング要件を満たすため）
 flask_app = Flask(__name__)
 
@@ -97,12 +100,8 @@ flask_app = Flask(__name__)
 def hello():
     return "Bot is running!"
 
-def run_flask():
-    port = int(os.environ.get("PORT", 8080))
-    flask_app.run(host="0.0.0.0", port=port)
-
-if __name__ == "__main__":
-    # 環境変数のチェック
+# gunicornから呼び出された場合でも、別スレッドでBotを起動させる関数
+def start_bot_worker():
     required_env_vars = [
         "SLACK_BOT_TOKEN", 
         "SLACK_APP_TOKEN", 
@@ -110,15 +109,24 @@ if __name__ == "__main__":
         "NOTION_API_KEY", 
         "NOTION_DATABASE_ID"
     ]
-    
     missing_vars = [var for var in required_env_vars if not os.environ.get(var)]
     if missing_vars:
         logger.error(f"必要な環境変数が設定されていません: {', '.join(missing_vars)}")
-    else:
-        logger.info("Starting Flask server for Render health checks...")
-        # Flaskを別スレッドで起動
-        threading.Thread(target=run_flask, daemon=True).start()
-        
-        logger.info("Bot is starting in Socket Mode...")
-        # Socket Mode を使用してリアルタイムでイベントを受け取る
-        SocketModeHandler(app, SLACK_APP_TOKEN).start()
+        return
+
+    logger.info("Bot is starting in Socket Mode (Background Thread)...")
+    try:
+        handler = SocketModeHandler(app, SLACK_APP_TOKEN)
+        handler.start()
+    except Exception as e:
+        logger.error(f"Failed to start bot: {e}")
+
+# Flaskアプリが作られた直後に、Botを別スレッドで起動する
+bot_thread = threading.Thread(target=start_bot_worker, daemon=True)
+bot_thread.start()
+
+# ここから下は、ローカル環境（python main.py）で実行した時用の設定
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
+    # ローカル起動時は Flask の開発サーバーを使う
+    flask_app.run(host="0.0.0.0", port=port)
